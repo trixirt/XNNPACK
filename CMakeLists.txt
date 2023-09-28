@@ -75,12 +75,19 @@ ELSE()
 ENDIF()
 
 # --- [ Processor-specific options
-OPTION(XNNPACK_ENABLE_ARM_FP16_SCALAR "Build XNNPACK with ARM FP16 (FP16 data processing) scalar micro-kernels" ON)
-OPTION(XNNPACK_ENABLE_ARM_FP16_VECTOR "Build XNNPACK with ARM FP16 (FP16 data processing) vector micro-kernels" ON)
-OPTION(XNNPACK_ENABLE_ARM_BF16 "Build XNNPACK with ARM BF16 (BFLOAT16) micro-kernels" ON)
-OPTION(XNNPACK_ENABLE_ARM_DOTPROD "Build XNNPACK with ARM DotProd (integer dot product) micro-kernels" ON)
-OPTION(XNNPACK_ENABLE_ARM_I8MM "Build XNNPACK with ARM I8MM (8-bit integer matrix multiply accumulate) micro-kernels" ON)
-OPTION(XNNPACK_ENABLE_RISCV_VECTOR "Build XNNPACK with RISC-V Vector micro-kernels" ON)
+IF(XNNPACK_TARGET_PROCESSOR MATCHES "^arm64")
+  MESSAGE(FATAL_ERROR "Unrecognized CMAKE_SYSTEM_PROCESSOR value \"${XNNPACK_TARGET_PROCESSOR}\"")
+
+
+  OPTION(XNNPACK_ENABLE_ARM_FP16_SCALAR "Build XNNPACK with ARM FP16 (FP16 data processing) scalar micro-kernels" ON)
+  OPTION(XNNPACK_ENABLE_ARM_FP16_VECTOR "Build XNNPACK with ARM FP16 (FP16 data processing) vector micro-kernels" ON)
+  OPTION(XNNPACK_ENABLE_ARM_BF16 "Build XNNPACK with ARM BF16 (BFLOAT16) micro-kernels" ON)
+  OPTION(XNNPACK_ENABLE_ARM_DOTPROD "Build XNNPACK with ARM DotProd (integer dot product) micro-kernels" ON)
+  OPTION(XNNPACK_ENABLE_ARM_I8MM "Build XNNPACK with ARM I8MM (8-bit integer matrix multiply accumulate) micro-kernels" ON)
+ENDIF()
+IF(XNNPACK_TARGET_PROCESSOR MATCHES "^riscv")
+  OPTION(XNNPACK_ENABLE_RISCV_VECTOR "Build XNNPACK with RISC-V Vector micro-kernels" ON)
+ENDIF()
 
 # ---[ CMake options
 INCLUDE(GNUInstallDirs)
@@ -532,6 +539,9 @@ IF(XNNPACK_BUILD_LIBRARY)
   TARGET_LINK_LIBRARIES(subgraph PRIVATE allocator logging memory mutex operators operator-run)
   TARGET_LINK_LIBRARIES(XNNPACK PRIVATE allocator cache hardware-config indirection jit logging memory microkernel-utils microparams-init mutex normalization operators operator-run operator-utils packing post-operation microkernels-prod subgraph)
   SET_TARGET_PROPERTIES(XNNPACK PROPERTIES C_EXTENSIONS YES)
+  # YY.M.D of last upstream commit to main
+  SET_TARGET_PROPERTIES(XNNPACK PROPERTIES SOVERSION "23.9.23")
+
 ENDIF()
 IF(NOT MSVC)
   SET_PROPERTY(SOURCE ${ALL_MICROKERNEL_SRCS} APPEND_STRING PROPERTY COMPILE_FLAGS " -fno-math-errno ")
@@ -899,15 +909,7 @@ IF(NOT TARGET fxdiv)
     IF(NOT FXDIV_HDR)
       MESSAGE(FATAL_ERROR "Cannot find fxdiv")
     ENDIF()
-    ADD_LIBRARY(fxdiv STATIC "${FXDIV_HDR}")
-    SET_PROPERTY(TARGET fxdiv PROPERTY LINKER_LANGUAGE C)
   ENDIF()
-ENDIF()
-TARGET_LINK_LIBRARIES(microkernels-all PRIVATE fxdiv)
-TARGET_LINK_LIBRARIES(microkernels-prod PRIVATE fxdiv)
-TARGET_LINK_LIBRARIES(indirection PRIVATE fxdiv)
-IF(XNNPACK_BUILD_LIBRARY)
-  TARGET_LINK_LIBRARIES(XNNPACK PRIVATE fxdiv)
 ENDIF()
 
 # ---[ Configure FP16
@@ -923,25 +925,7 @@ IF(NOT TARGET fp16)
     IF(NOT FP16_HDR)
       MESSAGE(FATAL_ERROR "Cannot find fp16")
     ENDIF()
-    ADD_LIBRARY(fp16 STATIC "${FP16_HDR}")
-    SET_PROPERTY(TARGET fp16 PROPERTY LINKER_LANGUAGE C)
   ENDIF()
-ENDIF()
-TARGET_LINK_LIBRARIES(microkernels-all PRIVATE fp16)
-TARGET_LINK_LIBRARIES(microkernels-prod PRIVATE fp16)
-TARGET_LINK_LIBRARIES(microparams-init PRIVATE fp16)
-TARGET_LINK_LIBRARIES(packing PRIVATE fp16)
-TARGET_LINK_LIBRARIES(indirection PRIVATE fp16)
-IF(XNNPACK_BUILD_LIBRARY)
-  TARGET_LINK_LIBRARIES(subgraph PRIVATE fp16)
-  TARGET_LINK_LIBRARIES(operators PRIVATE fp16)
-  TARGET_LINK_LIBRARIES(operator-run PRIVATE fp16)
-
-  TARGET_LINK_LIBRARIES(XNNPACK PRIVATE fp16)
-  INSTALL(TARGETS XNNPACK
-      LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-      ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-      PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 ENDIF()
 
 # ---[ XNNPACK unit tests
